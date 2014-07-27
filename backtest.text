@@ -1,0 +1,15 @@
+##Pin-pin 2.0 backtest
+
+###Metatrader
+* summary of parameters [which and what they affect]
+* summary of heuristics
+* parametrization of fixed parameters
+* tuning mains [many pairs, long period]
+* fine tuning [stop loss, time exits]
+
+###Python
+* simple 'idea' backtest. ideas confirmation
+* independent pybacktest
+* import csv with PL (like in Matlab)
+* process PL from Metatrader backtesting
+* ...
