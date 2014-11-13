@@ -11,16 +11,14 @@
 #include <TradeTools\TradeTools5.mqh>
 #include <stdlib.mqh>
 
-int magic_number_1 = 10303216;
-string AlertText ="";
-string  AlertEmailSubject  = "";
+int magic_number_1 = 10303276;
 string orderComment = "Pin-pin 1.2";
 int contracts = 0;
 
 int StopLevel;
-static int BarTime;
 static int t;
 int ticketArr[];
+double TakeProfit1;
 
 //--------------------------
 int OnInit()     {
@@ -76,9 +74,11 @@ if( isNewBar ) {
       // check for long position (BUY) possibility
          if(LongBuy == true )      {
             StopLoss = NormalizeDouble(Ask - f_initialStop_5(), Digits);
-            TakeProfit = NormalizeDouble(H , Digits);
+            TakeProfit1 = NormalizeDouble(H , Digits);
+            TakeProfit = NormalizeDouble(Ask+TP*pips2dbl , Digits);
       //--------Transaction
-            check = f_SendOrders(OP_BUY, contracts, Lots, StopLoss, TakeProfit, magic_number_1, orderComment);
+            check = f_SendOrders(OP_BUY, 1, Lots, StopLoss, TakeProfit1, magic_number_1, orderComment);
+            check = f_SendOrders(OP_BUY, contracts-1, Lots, StopLoss, TakeProfit, magic_number_1, orderComment);
       //--------
             if(check==0)         {
                  AlertText = "BUY order opened : " + Symbol() + ", " + TFToStr(Period())+ " -\r"
@@ -89,9 +89,11 @@ if( isNewBar ) {
       // check for short position (SELL) possibility
          if(ShortBuy == true )      {
             StopLoss = NormalizeDouble(Bid + f_initialStop_5(), Digits);
-            TakeProfit = NormalizeDouble(L , Digits);
+            TakeProfit1 = NormalizeDouble(L , Digits);
+            TakeProfit = NormalizeDouble(Bid-TP*pips2dbl , Digits);
       //--------Transaction
-            check = f_SendOrders(OP_SELL, contracts, Lots, StopLoss, TakeProfit, magic_number_1, orderComment);
+            check = f_SendOrders(OP_SELL, 1, Lots, StopLoss, TakeProfit1, magic_number_1, orderComment);
+            check = f_SendOrders(OP_SELL, contracts-1, Lots, StopLoss, TakeProfit, magic_number_1, orderComment);
       //--------
             if(check==0)         {
                   AlertText = "SELL order opened : " + Symbol() + ", " + TFToStr(Period())+ " -\r"
@@ -100,32 +102,7 @@ if( isNewBar ) {
             f_SendAlerts(AlertText);
          }
       }
-// EXIT MARKET
-   cnt = f_OrdersTotal(magic_number_1, ticketArr); //-1 = no active orders
-   while (cnt > 0) {                               // exit all except last one position
-      if(OrderSelect(ticketArr[cnt], SELECT_BY_TICKET, MODE_TRADES) )   {
-         // Jeśli pozycja zarobiona to przymknij 1 lot
-         if(OrderType() == OP_BUY && (Ask - OrderOpenPrice()) > TP * pips2dbl  )   {
-                  RefreshRates();
-                  if(TradeIsBusy() < 0) // Trade Busy semaphore
-                     break;
-                  check = OrderClose(OrderTicket(),OrderLots(), Bid, 5, Violet); // close 1/2 position
-                  TradeIsNotBusy();
-                  f_SendAlerts(orderComment + " trade exit attempted.\rResult = " + ErrorDescription(GetLastError()) + ". \rPrice = " + DoubleToStr(Ask, 5));
-         }
-         if(OrderType() == OP_SELL && (OrderOpenPrice() - Bid) > TP * pips2dbl )   {
-                  RefreshRates();
-                  if(TradeIsBusy() < 0) // Trade Busy semaphore
-                     break;
-                  check = OrderClose(OrderTicket(),OrderLots(), Ask, 5, Violet); // close 1/2 position
-                  TradeIsNotBusy();
-                  f_SendAlerts(orderComment + " trade exit attempted.\rResult = " + ErrorDescription(GetLastError()) + ". \rPrice = " + DoubleToStr(Bid, 5));
-         }
-
-      }//if OrderSelect
-      cnt--;
-   }//while cnt > 0
-}//EXIT MARKET
+}//isNewBar
 
 if ( isNewDay ) {
    for(int i=0; i < maxContracts; i++) //re-initialize an array with order tickets

@@ -1,24 +1,21 @@
 //+------------------------------------------------------------------+
 //             Copyright © 2012, 2013, 2014 chew-z                   |
-// v 1.2 - zarządzanie według ideii z materiału o Pin Bars           |
+// v 1.3 - zarządzanie według ideii z materiału o Pin Bars           |
 // to jest refaktoryzacja "starego" Pin-pin do nowych                |
 // korzysta z TradeTols5 i nowych procedur                           |
 // ale logika nie powinna ulec zmianie                               |
 // dopiero później nadejdzie czas na zmiany logiki                   |
 //+------------------------------------------------------------------+
-#property copyright "Pin-pin Pullback © 2012-2014 chew-z"
+#property copyright "Pin-pin Pullback 1.3 © 2012-2014 chew-z"
 #include <TradeContext.mq4>
 #include <TradeTools\TradeTools5.mqh>
 #include <stdlib.mqh>
 
-int magic_number_1 = 10303216;
-string AlertText ="";
-string  AlertEmailSubject  = "";
-string orderComment = "Pin-pin 1.2";
+int magic_number_1 = 10303219;
+string orderComment = "Pin-pin 1.3";
 int contracts = 0;
 
 int StopLevel;
-static int BarTime;
 static int t;
 int ticketArr[];
 
@@ -100,45 +97,22 @@ if( isNewBar ) {
             f_SendAlerts(AlertText);
          }
       }
-// EXIT MARKET
+}//isNewBar
+if( isNewBar ) {
    cnt = f_OrdersTotal(magic_number_1, ticketArr); //-1 = no active orders
-   while (cnt > 0) {                               // exit all except last one position
+   while (cnt >= 0) {                              //Print ("Ticket #", ticketArr[k]);
       if(OrderSelect(ticketArr[cnt], SELECT_BY_TICKET, MODE_TRADES) )   {
-         // Jeśli pozycja zarobiona to przymknij 1 lot
-         if(OrderType() == OP_BUY && (Ask - OrderOpenPrice()) > TP * pips2dbl  )   {
-                  RefreshRates();
-                  if(TradeIsBusy() < 0) // Trade Busy semaphore
-                     break;
-                  check = OrderClose(OrderTicket(),OrderLots(), Bid, 5, Violet); // close 1/2 position
-                  TradeIsNotBusy();
-                  f_SendAlerts(orderComment + " trade exit attempted.\rResult = " + ErrorDescription(GetLastError()) + ". \rPrice = " + DoubleToStr(Ask, 5));
-         }
-         if(OrderType() == OP_SELL && (OrderOpenPrice() - Bid) > TP * pips2dbl )   {
-                  RefreshRates();
-                  if(TradeIsBusy() < 0) // Trade Busy semaphore
-                     break;
-                  check = OrderClose(OrderTicket(),OrderLots(), Ask, 5, Violet); // close 1/2 position
-                  TradeIsNotBusy();
-                  f_SendAlerts(orderComment + " trade exit attempted.\rResult = " + ErrorDescription(GetLastError()) + ". \rPrice = " + DoubleToStr(Bid, 5));
-         }
+// EXIT MARKET []
 
-      }//if OrderSelect
-      cnt--;
-   }//while cnt > 0
-}//EXIT MARKET
-
-if ( isNewDay ) {
-   for(int i=0; i < maxContracts; i++) //re-initialize an array with order tickets
-      ticketArr[i] = 0;
-// MODIFY ORDERS [move SL to breakeven]
-   cnt = f_OrdersTotal(magic_number_1, ticketArr); //-1 = no active orders
-   while (cnt > -1) {                              //
-      if(OrderSelect(ticketArr[cnt], SELECT_BY_TICKET, MODE_TRADES) )   {
-         if(OrderType()== OP_BUY && (Ask - OrderOpenPrice()) > TP * pips2dbl ) {
+// MODIFY ORDERS [trail SL agresivly]
+         if(OrderType()== OP_BUY  && f_hours_diff(OrderOpenTime(), Time[0]) > TE) {
             RefreshRates();
-            StopLoss = OrderOpenPrice();
-            TakeProfit = NormalizeDouble(H , Digits);
-            if ( TakeProfit != OrderTakeProfit() || StopLoss > OrderStopLoss() + 5*pips2dbl ) {
+            if (cnt)
+                StopLoss = NormalizeDouble(Ask - SL*pips2dbl, Digits);
+            else
+                StopLoss = NormalizeDouble(Ask - 2*SL*pips2dbl, Digits);
+            TakeProfit = OrderTakeProfit();
+            if ( StopLoss > OrderStopLoss() + 5*pips2dbl ) {
                   if(TradeIsBusy() < 0) // Trade Busy semaphore
                      break;
                   check = OrderModify(OrderTicket(),OrderOpenPrice(), StopLoss, TakeProfit, 0, Gold);
@@ -147,11 +121,14 @@ if ( isNewDay ) {
                   f_SendAlerts(AlertText);
             }
          }
-         if(OrderType()==OP_SELL && (OrderOpenPrice()- Bid) > TP * pips2dbl ) {
+         if(OrderType()==OP_SELL && f_hours_diff(OrderOpenTime(), Time[0]) > TE) {
             RefreshRates();
-            StopLoss = OrderOpenPrice();
-            TakeProfit = NormalizeDouble(L , Digits);
-            if ( TakeProfit != OrderTakeProfit() || StopLoss < OrderStopLoss() + 5*pips2dbl )  {
+            if (cnt)
+                StopLoss = NormalizeDouble(Bid + SL*pips2dbl, Digits);
+            else
+                 StopLoss = NormalizeDouble(Bid + 2*SL*pips2dbl, Digits);
+            TakeProfit = OrderTakeProfit();
+            if ( StopLoss < OrderStopLoss() + 5*pips2dbl )  {
                   if(TradeIsBusy() < 0) // Trade Busy semaphore
                      break;
                   check = OrderModify(OrderTicket(),OrderOpenPrice(), StopLoss, TakeProfit, 0, Gold);
@@ -160,11 +137,10 @@ if ( isNewDay ) {
                   f_SendAlerts(AlertText);
             }
          }
-      }//if OrderSelect
+       }//if OrderSelect
       cnt--;
-   } //while cnt > -1
-}// isNewDay
-//END MODIFY ORDERS
+   } //end while
+}//if NewBar
 
 
 }// exit OnTick
