@@ -12,13 +12,10 @@
 #include <stdlib.mqh>
 
 int magic_number_1 = 10303216;
-string AlertText ="";
-string  AlertEmailSubject  = "";
 string orderComment = "Pin-pin 1.2";
 int contracts = 0;
 
 int StopLevel;
-static int BarTime;
 static int t;
 int ticketArr[];
 
@@ -30,8 +27,8 @@ int OnInit()     {
         ticketArr[i] = 0;
    AlertEmailSubject = Symbol() + " " + orderComment + " alert";
    if (Digits == 5 || Digits == 3){    // Adjust for five (5) digit brokers.
-      pips2dbl    = Point*10; pips2points = 10;   Digits_pips = 1;
-   } else {    pips2dbl    = Point;    pips2points =  1;   Digits_pips = 0; }
+      pips2dbl    = Point*10; pips2points = 10;   Digits_pips = 1; dbl2pips = 0.1/Point;
+   } else {    pips2dbl    = Point;    pips2points =  1;   Digits_pips = 0; dbl2pips = 1.0/Point; }
    return(INIT_SUCCEEDED);
 }
 void OnDeinit(const int reason)   {
@@ -82,7 +79,7 @@ if( isNewBar ) {
       //--------
             if(check==0)         {
                  AlertText = "BUY order opened : " + Symbol() + ", " + TFToStr(Period())+ " -\r"
-                  + orderComment + " " + contracts + " order(s) opened. \rPrice = " + DoubleToStr(Ask, 5) + ", L = " + DoubleToStr(L, 5);
+                  + orderComment + " " + contracts + " order(s) opened. \rPrice = " + DoubleToStr(Ask, 5) + ", Risk = " + DoubleToStr(contracts*(Ask-StopLoss)*dbl2pips, 0);
             }  else { AlertText = "Error opening BUY order : " + ErrorDescription(check) + ". \rPrice = " + DoubleToStr(Ask, 5) + ", L = " + DoubleToStr(L, 5); }
             f_SendAlerts(AlertText);
          }
@@ -95,7 +92,7 @@ if( isNewBar ) {
       //--------
             if(check==0)         {
                   AlertText = "SELL order opened : " + Symbol() + ", " + TFToStr(Period())+ " -\r"
-                  + orderComment + " " + contracts + " order(s) opened. \rPrice = " + DoubleToStr(Bid, 5) + ", H = " + DoubleToStr(H, 5);
+                  + orderComment + " " + contracts + " order(s) opened. \rPrice = " + DoubleToStr(Bid, 5) + ", Risk = " + DoubleToStr(contracts*(StopLoss-Bid)*dbl2pips, 0);
             }  else { AlertText = "Error opening SELL order : " + ErrorDescription(check) + ". \rPrice = " + DoubleToStr(Bid, 5) + ", H = " + DoubleToStr(H, 5); }
             f_SendAlerts(AlertText);
          }
